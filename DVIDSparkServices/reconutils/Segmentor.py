@@ -166,7 +166,7 @@ class Segmentor(object):
 
         export_dir = '/nobackup/flyem/bergs/max-label-test'
         def read_max_and_write_chunk( sp_chunk ):
-            (subvolume, prediction_compressed, supervoxels_compressed) = sp_chunk
+            key, (subvolume, prediction_compressed, supervoxels_compressed) = sp_chunk
             labels = supervoxels_compressed.deserialize()
             
             filename = 'watershed-chunk-{roi_id:04}-x{x1:06}-y{y1:06}-z{z1:06}--x{x2:06}-y{y2:06}-z{z2:06}.h5'\
