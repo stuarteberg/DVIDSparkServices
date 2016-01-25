@@ -88,7 +88,10 @@ class sparkdvid(object):
         for substack_id, substack in enumerate(substacks):
             # use substack id as key
             subvolumes.append((substack_id, Subvolume(substack_id, substack, chunk_size, border))) 
-   
+
+        print "FIXME: filtering subvolumes"
+        selected_subvolume_ids = set([3333, 3334, 3274, 3289, 2970, 3131, 3132, 3302, 3316, 3317, 3320, 3321, 3260, 3261, 3275, 3276])
+        subvolumes = filter(lambda x: x[0] in selected_subvolume_ids, subvolumes)   
 
         # grab all neighbors for each substack
         if find_neighbors:

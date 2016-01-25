@@ -249,9 +249,46 @@ class CreateSegmentation(DVIDWorkflow):
         # pickling, lz4 compressed numpy array should help
         seg_chunks.persist(StorageLevel.MEMORY_AND_DISK_SER)
 
+        export_dir = '/nobackup/flyem/bergs/max-label-test'
+        def read_max_and_write_chunk( seg_chunk ):
+            roi_key, (subvolume, labelsc) = seg_chunk
+            labels = labelsc.deserialize()
+            
+            filename = 'segmentation-chunk-{roi_id:04}-x{x1:06}-y{y1:06}-z{z1:06}--x{x2:06}-y{y2:06}-z{z2:06}.h5'\
+                .format(roi_id=subvolume.roi_id,
+                        x1=subvolume.roi.x1,
+                        x2=subvolume.roi.x2,
+                        y1=subvolume.roi.y1,
+                        y2=subvolume.roi.y2,
+                        z1=subvolume.roi.z1,
+                        z2=subvolume.roi.z2)
+
+            import h5py
+            with h5py.File(export_dir + '/' + filename, 'w') as f:
+                f.create_dataset('labels', data=labels)
+            
+            return (subvolume.roi_id, labels.max())
+            
+        max_labels = seg_chunks.map(read_max_and_write_chunk).collect()
+        
+        mm = 0
+        with open(export_dir + '/MAX_SEGMENTATION_LABELS.txt', 'w') as f:
+            f.write('{\n')
+            for roi_id, max_label in sorted(max_labels):
+                f.write("{} : {},\n".format(roi_id, max_label))
+                mm = max(mm, max_label)
+            f.write('}\n')
+
+        
+        print "Max label found: {}".format(mm)
+        print "EXITING EARLY"
+        import sys
+        sys.exit(1)
+
         # stitch the segmentation chunks
         # (preserves initial partitioning)
         mapped_seg_chunks = segmentor.stitch(seg_chunks)
+
         
         # no longer need seg chunks
         seg_chunks.unpersist()

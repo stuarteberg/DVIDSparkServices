@@ -164,6 +164,36 @@ class Segmentor(object):
         # run watershed from voxel prediction (default: seeded watershed)
         sp_chunks = self.create_supervoxels(pred_chunks)
 
+        export_dir = '/nobackup/flyem/bergs/max-label-test'
+        def read_max_and_write_chunk( sp_chunk ):
+            (subvolume, prediction_compressed, supervoxels_compressed) = sp_chunk
+            labels = supervoxels_compressed.deserialize()
+            
+            filename = 'watershed-chunk-{roi_id:04}-x{x1:06}-y{y1:06}-z{z1:06}--x{x2:06}-y{y2:06}-z{z2:06}.h5'\
+                .format(roi_id=subvolume.roi_id,
+                        x1=subvolume.roi.x1,
+                        x2=subvolume.roi.x2,
+                        y1=subvolume.roi.y1,
+                        y2=subvolume.roi.y2,
+                        z1=subvolume.roi.z1,
+                        z2=subvolume.roi.z2)
+
+            import h5py
+            with h5py.File(export_dir + '/' + filename, 'w') as f:
+                f.create_dataset('labels', data=labels)
+            
+            return (subvolume.roi_id, labels.max())
+            
+        max_labels = sp_chunks.map(read_max_and_write_chunk).collect()
+        
+        mm = 0
+        with open(export_dir + '/MAX_WATERSHED_LABELS.txt', 'w') as f:
+            f.write('{\n')
+            for roi_id, max_label in sorted(max_labels):
+                f.write("{} : {},\n".format(roi_id, max_label))
+                mm = max(mm, max_label)
+            f.write('}\n')
+
         # run agglomeration (default: none)
         segmentation = self.agglomerate_supervoxels(sp_chunks) 
 
