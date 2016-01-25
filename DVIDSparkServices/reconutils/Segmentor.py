@@ -156,6 +156,25 @@ class Segmentor(object):
         # run voxel prediction (default: grayscale is boundary)
         pred_chunks = self.predict_voxels(gray_mask_chunks)
 
+        export_dir = '/nobackup/flyem/bergs/max-label-test'
+        def write_pred_chunk( pred_chunk ):
+            key, ( subvolume, predictions_compressed, mask_compressed ) = pred_chunk
+            predictions = predictions_compressed.deserialize()
+            
+            filename = 'prediction-chunk-{roi_id:04}-x{x1:06}-y{y1:06}-z{z1:06}--x{x2:06}-y{y2:06}-z{z2:06}.h5'\
+                .format(roi_id=subvolume.roi_id,
+                        x1=subvolume.roi.x1, x2=subvolume.roi.x2,
+                        y1=subvolume.roi.y1, y2=subvolume.roi.y2,
+                        z1=subvolume.roi.z1, z2=subvolume.roi.z2)
+
+            import h5py
+            with h5py.File(export_dir + '/' + filename, 'w') as f:
+                f.create_dataset('predictions', data=predictions)
+            
+            return subvolume.roi_id
+            
+        pred_chunks.map(write_pred_chunk).collect()
+
 #         # retrieve previously computed RDD or save current RDD
 #         if checkpoint_dir != "":
 #             pred_chunks = self.context.checkpointRDD(pred_chunks, 
@@ -165,7 +184,7 @@ class Segmentor(object):
         sp_chunks = self.create_supervoxels(pred_chunks)
 
         export_dir = '/nobackup/flyem/bergs/max-label-test'
-        def read_max_and_write_chunk( sp_chunk ):
+        def read_max_and_write_sp_chunk( sp_chunk ):
             key, (subvolume, prediction_compressed, supervoxels_compressed) = sp_chunk
             labels = supervoxels_compressed.deserialize()
             
@@ -184,7 +203,7 @@ class Segmentor(object):
             
             return (subvolume.roi_id, labels.max())
             
-        max_labels = sp_chunks.map(read_max_and_write_chunk).collect()
+        max_labels = sp_chunks.map(read_max_and_write_sp_chunk).collect()
         
         mm = 0
         with open(export_dir + '/MAX_WATERSHED_LABELS.txt', 'w') as f:
